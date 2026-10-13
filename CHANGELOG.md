@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The README's `AGENTS.md` snippet also asks agents to amend agent `Co-authored-by` trailers out of their commits before pushing
+
 ## [3.1.0] - 2026-10-07
 
 ### Added

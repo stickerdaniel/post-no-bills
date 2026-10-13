@@ -55,12 +55,13 @@ jobs:
 
 Make `post-no-bills` a required check. Keep the release SHA pinned and give the job no `if:`: GitHub counts a skipped job as passing.
 
-Add this to your `AGENTS.md` so agents include the disclosure before CI runs:
+Add this to your `AGENTS.md` so agents get the disclosure and trailers right before CI runs:
 
 ```text
 End PR bodies with `Generated with <model> for <job> in <tool> via <host>.`
 Repeat `<model> for <job>` joined by `and`; join jobs with `/`.
 Humans are `Human`. Ask for unknown values.
+Keep attribution in that line: before pushing, amend agent `Co-authored-by` trailers out of your commits.
 ```
 
 ## Configuration
