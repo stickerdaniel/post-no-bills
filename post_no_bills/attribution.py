@@ -57,19 +57,16 @@ _NO_HOST = "The last line names no host"
 
 # What the annotation tells the author to write, each with its final period.
 _FORMS = {
-    "model": "<Job> with <model>.",
     "effort": "<Job> with <model> (<effort>).",
     "tool": "<Job> with <model> (<effort>) in <tool>.",
     "host": "<Job> with <model> (<effort>) in <tool> via <host>.",
 }
 _EXAMPLES = {
-    "model": "Implemented with Claude Opus 5.5.",
     "effort": "Implemented with Claude Opus 5.5 (xhigh).",
     "tool": "Implemented with Claude Opus 5.5 (xhigh) in Claude Code.",
     "host": "Implemented with Claude Opus 5.5 (xhigh) in Claude Code via T3 Code.",
 }
 _SEVERAL = {
-    "model": "Implemented with Claude Opus 5.5 and reviewed with GPT-6 Pro.",
     "effort": "Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max).",
     "tool": (
         "Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) "
@@ -206,9 +203,11 @@ def _last_line(body: str | None) -> str | None:
 def check(body: str | None, level: str) -> str | None:
     """The one-line failure for level, or None when the body passes it.
 
-    `off` checks nothing. The message names the first problem and never quotes
-    the body. A valid line that is too thin for the level fails after the
-    grammar, so a broken line is not reported as merely missing a host.
+    `off` checks nothing. Every other level wants an effort on each model but
+    `Human`: without the trailing group, prose such as "Verified with 35 tests."
+    reads as a line. The message names the first problem and never quotes the
+    body. A valid line that is too thin for the level fails after the grammar,
+    so a broken line is not reported as merely missing a host.
     """
     if level == "off":
         return None
@@ -219,9 +218,7 @@ def check(body: str | None, level: str) -> str | None:
     if isinstance(parsed, str):
         return _message(parsed, level)
     clauses, tool, host = parsed
-    if level in ("effort", "tool", "host") and any(
-        effort is None and model != _HUMAN for _, model, effort in clauses
-    ):
+    if any(effort is None and model != _HUMAN for _, model, effort in clauses):
         return _message(_NO_EFFORT, level)
     if level in ("tool", "host") and tool is None:
         return _message(_NO_TOOL, level)

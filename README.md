@@ -74,7 +74,7 @@ Violations fail the check by default; unusual spaces warn. Severity inputs accep
 
 | Input | Default | Effect |
 | --- | --- | --- |
-| `model-attribution` | `host` | `off`, `model`, `effort`, `tool` or `host`. |
+| `model-attribution` | `host` | `off`, `effort`, `tool` or `host`. |
 | `co-author-trailers` | `error` | `error`, `warn` or `off` for agent trailers in commit messages and the PR body. |
 | `agent-identities` | `error` | `error`, `warn` or `off` for commits authored or committed by an agent's address. |
 | `hidden-unicode` | `error` | `error`, `warn` or `off` for invisible and private-use characters. |
@@ -110,21 +110,22 @@ Set inputs as literals in the workflow on the default branch, never from pull re
 <details>
 <summary><strong>Model attribution</strong></summary>
 
-`host` is the default: every job with its model and the model's effort, the tool and the host. Write `effort unknown` when nothing states the effort. `Human` needs no effort. `off` turns the check off. A line that passes a stricter level also passes the ones below it.
+`host` is the default: every job with its model and the model's effort, the tool and the host. `effort` is the minimum: every model needs an effort; write `effort unknown` when nothing states it. `Human` needs no effort. `off` turns the check off. A line that passes a stricter level also passes the ones below it.
 
-| Last line of the PR body | `model` | `effort` | `tool` | `host` |
-| --- | :-: | :-: | :-: | :-: |
-| `Implemented with Claude Opus 5.5.` | ✓ | ✗ | ✗ | ✗ |
-| `Implemented with Claude Opus 5.5 (xhigh).` | ✓ | ✓ | ✗ | ✗ |
-| `Implemented with Claude Opus 5.5 (xhigh) in Claude Code.` | ✓ | ✓ | ✓ | ✗ |
-| `Implemented with Claude Opus 5.5 (xhigh) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
-| `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
-| `Planned and implemented with Claude Opus 5.5 (max) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
-| `Implemented with Claude Opus 5.5 (effort unknown) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
-| `Implemented with Claude Opus 5.5 (xhigh) and reviewed with Human in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
-| `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro in Claude Code via T3 Code.` | ✓ | ✗ | ✗ | ✗ |
-| `Implemented with Claude Opus 5.5 (xhigh) and GPT-6 Pro (max) in Claude Code.` | ✗ | ✗ | ✗ | ✗ |
-| `Generated with Claude Opus 5.5 for implementation in Claude Code via T3 Code.` | ✓ | ✗ | ✗ | ✗ |
+| Last line of the PR body | `effort` | `tool` | `host` |
+| --- | :-: | :-: | :-: |
+| `Implemented with Claude Opus 5.5 (xhigh).` | ✓ | ✗ | ✗ |
+| `Implemented with Claude Opus 5.5 (xhigh) in Claude Code.` | ✓ | ✓ | ✗ |
+| `Implemented with Claude Opus 5.5 (xhigh) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ |
+| `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ |
+| `Planned and implemented with Claude Opus 5.5 (max) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ |
+| `Implemented with Claude Opus 5.5 (effort unknown) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ |
+| `Implemented with Claude Opus 5.5 (xhigh) and reviewed with Human in Claude Code via T3 Code.` | ✓ | ✓ | ✓ |
+| `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro in Claude Code via T3 Code.` | ✗ | ✗ | ✗ |
+| `Implemented with Claude Opus 5.5.` | ✗ | ✗ | ✗ |
+| `Verified with 35 focused tests. Static checks pass.` | ✗ | ✗ | ✗ |
+| `Implemented with Claude Opus 5.5 (xhigh) and GPT-6 Pro (max) in Claude Code.` | ✗ | ✗ | ✗ |
+| `Generated with Claude Opus 5.5 for implementation in Claude Code via T3 Code.` | ✗ | ✗ | ✗ |
 
 </details>
 

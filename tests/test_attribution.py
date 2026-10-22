@@ -17,7 +17,8 @@ from post_no_bills.report import Reporter
 from .support import ROOT, policy
 
 _TEMPLATE = ROOT / ".github" / "pull_request_template.md"
-_LEVELS = ("model", "effort", "tool", "host")
+_README = ROOT / "README.md"
+_LEVELS = ("effort", "tool", "host")
 
 _NO_LINE = "The PR body has no last line"
 _PLACEHOLDER = "The last line still holds a placeholder"
@@ -33,77 +34,15 @@ _NO_EFFORT = 'A model has no effort; write "(effort unknown)" when nothing state
 _NO_TOOL = "The last line names no tool"
 _NO_HOST = "The last line names no host"
 
-# Two rows the README leaves out, then the README table in order. (body,
-# passes at model, effort, tool, host).
-_README = (
-    (None, False, False, False, False),
-    ("[job] with [model] ([effort]) in [tool] via [host].", False, False, False, False),
-    ("Implemented with Claude Opus 5.5.", True, False, False, False),
-    ("Implemented with Claude Opus 5.5 (xhigh).", True, True, False, False),
-    ("Implemented with Claude Opus 5.5 (xhigh) in Claude Code.", True, True, True, False),
-    ("Implemented with Claude Opus 5.5 (xhigh) in Claude Code via T3 Code.", True, True, True, True),
-    (
-        "Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) "
-        "in Claude Code via T3 Code.",
-        True,
-        True,
-        True,
-        True,
-    ),
-    (
-        "Planned and implemented with Claude Opus 5.5 (max) in Claude Code via T3 Code.",
-        True,
-        True,
-        True,
-        True,
-    ),
-    (
-        "Implemented with Claude Opus 5.5 (effort unknown) in Claude Code via T3 Code.",
-        True,
-        True,
-        True,
-        True,
-    ),
-    (
-        "Implemented with Claude Opus 5.5 (xhigh) and reviewed with Human in Claude Code via T3 Code.",
-        True,
-        True,
-        True,
-        True,
-    ),
-    (
-        "Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro "
-        "in Claude Code via T3 Code.",
-        True,
-        False,
-        False,
-        False,
-    ),
-    (
-        "Implemented with Claude Opus 5.5 (xhigh) and GPT-6 Pro (max) in Claude Code.",
-        False,
-        False,
-        False,
-        False,
-    ),
-    (
-        "Generated with Claude Opus 5.5 for implementation in Claude Code via T3 Code.",
-        True,
-        False,
-        False,
-        False,
-    ),
-)
-
 # Shown after "in this form: ", including the sentence period.
 _FORMS = {
-    "model": "<Job> with <model>.",
     "effort": "<Job> with <model> (<effort>).",
     "tool": "<Job> with <model> (<effort>) in <tool>.",
     "host": "<Job> with <model> (<effort>) in <tool> via <host>.",
 }
 
-# (line, passes effort, passes tool, passes host). Every line passes model.
+# (line, passes effort, passes tool, passes host). The grammar accepts every
+# line; the levels decide whether it is detailed enough.
 _ACCEPTED = (
     ("Implemented with Claude Opus 5.", False, False, False),
     ("Implemented with Claude Opus 5.5 (max) .", True, False, False),
@@ -193,20 +132,49 @@ def _passes(body: str | None, level: str) -> bool:
     return attribution.check(body, level) is None
 
 
+def _template_line() -> str:
+    lines = [
+        line.strip()
+        for line in _TEMPLATE.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    return lines[-1]
+
+
+def _readme_table() -> tuple[list[str], list[list[str]]]:
+    """(level columns, rows of cells) of the table under the README's
+    "Model attribution" details."""
+    text = _README.read_text(encoding="utf-8")
+    section = text.split("<summary><strong>Model attribution</strong></summary>", 1)[1]
+    section = section.split("</details>", 1)[0]
+    rows = [
+        [cell.strip() for cell in line.strip().strip("|").split("|")]
+        for line in section.splitlines()
+        if line.startswith("|")
+    ]
+    header, _, *data = rows
+    return [cell.strip("`") for cell in header[1:]], data
+
+
 class ReadmeTableTests(unittest.TestCase):
     def test_every_row_at_every_level(self) -> None:
-        self.assertEqual(len(_README), 13)
-        for body, *expected in _README:
-            for level, ok in zip(_LEVELS, expected, strict=True):
-                with self.subTest(body=body, level=level):
-                    self.assertEqual(_passes(body, level), ok)
+        levels, rows = _readme_table()
+        self.assertEqual(tuple(levels), _LEVELS)
+        self.assertTrue(rows)
+        for line, *cells in rows:
+            line = line.strip("`")
+            for level, cell in zip(levels, cells, strict=True):
+                with self.subTest(line=line, level=level):
+                    self.assertIn(cell, ("✓", "✗"))
+                    self.assertEqual(_passes(line, level), cell == "✓")
 
 
 class AttributionGrammarTests(unittest.TestCase):
     def test_accepted_lines_pass_the_levels_they_satisfy(self) -> None:
-        for line, effort, tool, host in _ACCEPTED:
-            expected = {"model": True, "effort": effort, "tool": tool, "host": host}
-            for level, ok in expected.items():
+        for line, *expected in _ACCEPTED:
+            with self.subTest(line=line):
+                self.assertNotIsInstance(attribution.parse(line), str)
+            for level, ok in zip(_LEVELS, expected, strict=True):
                 with self.subTest(line=line, level=level):
                     self.assertEqual(_passes(line, level), ok)
 
@@ -306,19 +274,24 @@ class AttributionGrammarTests(unittest.TestCase):
 class ReasonTests(unittest.TestCase):
     def test_each_reason_leads_the_message(self) -> None:
         cases = (
-            ("model", None, _NO_LINE),
-            ("model", "Done.", _NO_MODEL),
-            ("model", "[job] with [model].", _PLACEHOLDER),
-            ("model", "Implemented with GPT-5.6 and", _FIELD),
-            ("model", "Implemented with GPT-5.6 ().", _EFFORT_TEXT),
-            ("model", "Implemented with Claude Opus 5.5 (max) and GPT-6 Pro (max).", _LAST_JOB),
-            ("model", "Implemented with Claude Opus 5.5", _PERIOD),
+            ("effort", None, _NO_LINE),
+            ("effort", "Done.", _NO_MODEL),
+            ("effort", "[job] with [model].", _PLACEHOLDER),
+            ("effort", "Implemented with GPT-5.6 and", _FIELD),
+            ("effort", "Implemented with GPT-5.6 ().", _EFFORT_TEXT),
+            ("effort", "Implemented with Claude Opus 5.5 (max) and GPT-6 Pro (max).", _LAST_JOB),
+            ("effort", "Implemented with Claude Opus 5.5", _PERIOD),
             ("effort", "Implemented with Claude Opus 5.5.", _NO_EFFORT),
+            (
+                "host",
+                "Generated with Claude Opus 5.5 for implementation in Claude Code via T3 Code.",
+                _NO_EFFORT,
+            ),
             ("tool", "Implemented with Claude Opus 5.5 (max).", _NO_TOOL),
             ("host", "Implemented with Claude Opus 5.5 (max) in Claude Code.", _NO_HOST),
         )
         for level, body, reason in cases:
-            with self.subTest(reason=reason):
+            with self.subTest(body=body, level=level):
                 message = attribution.check(body, level)
                 self.assertTrue(message.startswith(reason + "."), message)
                 self.assertNotIn("\n", message)
@@ -326,23 +299,23 @@ class ReasonTests(unittest.TestCase):
 
     def test_an_earlier_reason_wins(self) -> None:
         cases = (
-            ("model", "\n\n", _NO_LINE, _NO_MODEL),
-            ("model", "See [model]", _PLACEHOLDER, _NO_MODEL),
+            ("effort", "\n\n", _NO_LINE, _NO_MODEL),
+            ("effort", "See [model]", _PLACEHOLDER, _NO_MODEL),
             (
-                "model",
+                "effort",
                 "[job] with Claude Opus 5.5 (max) and GPT-6 Pro in Code in a Box.",
                 _PLACEHOLDER,
                 _FIELD,
             ),
             (
-                "model",
+                "effort",
                 "Implemented with Claude Opus 5.5 (max) and  with GPT-6 Pro (max)",
                 _FIELD,
                 _PERIOD,
             ),
-            ("model", "Implemented with Claude Opus 5.5 ()", _EFFORT_TEXT, _PERIOD),
+            ("effort", "Implemented with Claude Opus 5.5 ()", _EFFORT_TEXT, _PERIOD),
             (
-                "model",
+                "effort",
                 "Implemented with Claude Opus 5.5 (max) and GPT-6 Pro (max)",
                 _LAST_JOB,
                 _PERIOD,
@@ -397,7 +370,7 @@ _MACROSCOPE = (
     ">\n"
     "<!-- Macroscope's pull request summary ends here -->\n"
 )
-_LINE = "Implemented with Claude Opus 5.5."
+_LINE = "Implemented with Claude Opus 5.5 (xhigh)."
 
 
 class MacroscopeTests(unittest.TestCase):
@@ -426,7 +399,7 @@ class MacroscopeTests(unittest.TestCase):
         for name, body in bodies.items():
             for newline_name, newline in (("lf", "\n"), ("crlf", "\r\n")):
                 with self.subTest(body=name, newline=newline_name):
-                    self.assertTrue(_passes(body.replace("\n", newline), "model"))
+                    self.assertTrue(_passes(body.replace("\n", newline), "effort"))
 
     def test_the_macroscope_summary_carries_no_attribution(self) -> None:
         bodies = {
@@ -440,10 +413,16 @@ class MacroscopeTests(unittest.TestCase):
         }
         for name, body in bodies.items():
             with self.subTest(body=name):
-                self.assertFalse(_passes(body, "model"))
+                self.assertFalse(_passes(body, "effort"))
 
 
 class TemplateTests(unittest.TestCase):
+    def test_no_body_and_the_template_line_fail_every_level(self) -> None:
+        for body in (None, _template_line()):
+            for level in _LEVELS:
+                with self.subTest(body=body, level=level):
+                    self.assertFalse(_passes(body, level))
+
     def test_template_ends_with_editable_attribution_placeholder(self) -> None:
         lines = [
             line.strip()
@@ -461,10 +440,10 @@ class TemplateTests(unittest.TestCase):
 class AnnotationTests(unittest.TestCase):
     def test_failure_emits_actionable_github_annotation(self) -> None:
         stream = io.StringIO()
-        findings = rules.check_attribution("No attribution", "jane", policy({"model-attribution": "model"}))
+        findings = rules.check_attribution("No attribution", "jane", policy({"model-attribution": "effort"}))
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0].title, "PR model attribution required")
-        self.assertEqual(findings[0].message, attribution.check("No attribution", "model"))
+        self.assertEqual(findings[0].message, attribution.check("No attribution", "effort"))
         self.assertNotIn("\n", findings[0].message)
         for finding in findings:
             Reporter(stream).finding(finding)
@@ -473,8 +452,8 @@ class AnnotationTests(unittest.TestCase):
         self.assertTrue(output.startswith("::error title=PR model attribution required::"))
         self.assertNotIn("%0A", output.splitlines()[0])
         self.assertIn(_NO_MODEL, output)
-        self.assertIn("<Job> with <model>.", output)
-        self.assertIn("Implemented with Claude Opus 5.5.", output)
+        self.assertIn("<Job> with <model> (<effort>).", output)
+        self.assertIn("Implemented with Claude Opus 5.5 (xhigh).", output)
 
 
 if __name__ == "__main__":

@@ -149,7 +149,7 @@ class AttributionRuleTests(unittest.TestCase):
     )
 
     def _fails(self, body: str | None, login: str = "jane") -> bool:
-        return bool(rules.check_attribution(body, login, policy({"model-attribution": "model"})))
+        return bool(rules.check_attribution(body, login, policy({"model-attribution": "effort"})))
 
     def test_unfilled_template_line_fails(self) -> None:
         self.assertTrue(self._fails(self._TEMPLATE_BODY))
@@ -160,8 +160,8 @@ class AttributionRuleTests(unittest.TestCase):
     def test_review_bot_is_not_exempt(self) -> None:
         self.assertTrue(self._fails("Summary without attribution", login="greptile-apps[bot]"))
 
-    def test_model_only_attribution_passes(self) -> None:
-        self.assertFalse(self._fails("Done.\n\nImplemented with Claude Opus 5."))
+    def test_effort_only_attribution_passes(self) -> None:
+        self.assertFalse(self._fails("Done.\n\nImplemented with Claude Opus 5 (high)."))
 
     def test_detailed_attribution_passes(self) -> None:
         self.assertFalse(
@@ -170,7 +170,7 @@ class AttributionRuleTests(unittest.TestCase):
 
     def test_attribution_followed_by_macroscope_block_passes(self) -> None:
         body = (
-            "Done.\n\nImplemented with Claude Opus 5.\n\n"
+            "Done.\n\nImplemented with Claude Opus 5 (high).\n\n"
             "<!-- Macroscope's pull request summary starts here -->\n"
             "> summary\n"
             "<!-- Macroscope's pull request summary ends here -->\n"
@@ -188,7 +188,7 @@ class AttributionRuleTests(unittest.TestCase):
 
     def test_added_exemption_covers_attribution_only(self) -> None:
         exempt = policy(
-            {"model-attribution": "model", "additional-attribution-exemptions": "release-bot"}
+            {"model-attribution": "effort", "additional-attribution-exemptions": "release-bot"}
         )
         self.assertEqual(rules.check_attribution("No line", "release-bot", exempt), [])
         self.assertTrue(rules.check_attribution("No line", "Release-bot", exempt))

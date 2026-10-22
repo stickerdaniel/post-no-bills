@@ -90,10 +90,10 @@ class LoadTests(unittest.TestCase):
         )
         self.assertEqual(self._load(inputs={"hidden-unicode": "warn"}).policy.hidden_unicode, "warn")
         self.assertEqual(self._load(inputs={"hidden-unicode": "off"}).policy.hidden_unicode, "off")
-        for value in ("true", "false", "yes", ""):
+        for value in ("true", "false", "yes", "", "model", "job"):
             with self.subTest(value=value):
                 self._rejects(
-                    "input model-attribution must be off, model, effort, tool or host",
+                    "input model-attribution must be off, effort, tool or host",
                     inputs={"model-attribution": value},
                 )
         for value in ("Error", ""):
@@ -246,7 +246,7 @@ class InputTests(unittest.TestCase):
                 with self.subTest(name=name, value=value):
                     self._refuses(f"input {name} must be inherit, error, warn or off", {name: value})
         self._refuses(
-            "input model-attribution must be off, model, effort, tool or host",
+            "input model-attribution must be off, effort, tool or host",
             {"model-attribution": "inherit"},
         )
 
@@ -256,19 +256,20 @@ class InputTests(unittest.TestCase):
         self._refuses("input hidden-unicode must be", {"Hidden-Unicode": "Warn"})
 
     def test_model_attribution_lists_its_levels_in_order(self) -> None:
-        for level in ("off", "model", "effort", "tool", "host"):
+        for level in ("off", "effort", "tool", "host"):
             with self.subTest(level=level):
                 self.assertEqual(_policy({"model-attribution": level}).model_attribution, level)
-        for value in ("true", "false", "Host", ""):
+        # model and job were levels in earlier releases.
+        for value in ("model", "job", "true", "false", "Host", ""):
             with self.subTest(value=value):
                 self.assertEqual(
                     self._refuses("input model-attribution must be", {"model-attribution": value}),
-                    f"input model-attribution must be off, model, effort, tool or host, got {value!r}",
+                    f"input model-attribution must be off, effort, tool or host, got {value!r}",
                 )
 
     def test_unknown_names_fail(self) -> None:
         self.assertEqual(
-            self._refuses("unknown input", {"model-attributionn": "model"}),
+            self._refuses("unknown input", {"model-attributionn": "effort"}),
             "unknown input(s): 'model-attributionn'",
         )
         # The removed boolean has no alias and no message of its own.

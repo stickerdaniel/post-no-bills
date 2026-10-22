@@ -179,7 +179,7 @@ class CompositeStepTests(RemoteTestCase):
 
     def test_inputs_reach_the_entrypoint(self) -> None:
         required, _ = self._run_step(
-            {"model-attribution": "model", "hidden-unicode": "error"}, body="No line"
+            {"model-attribution": "effort", "hidden-unicode": "error"}, body="No line"
         )
         self.assertEqual(required.returncode, 1, required.stdout + required.stderr)
         self.assertIn("::error title=PR model attribution required::", required.stdout)
@@ -197,12 +197,12 @@ class CompositeStepTests(RemoteTestCase):
     def test_a_name_in_another_case_is_that_input(self) -> None:
         # The runner adds no default for a declared name the caller wrote in
         # another case, so the caller's value is the only one.
-        required, _ = self._run_step({"Model-Attribution": "model"}, body="No line")
+        required, _ = self._run_step({"Model-Attribution": "effort"}, body="No line")
         self.assertEqual(required.returncode, 1, required.stdout + required.stderr)
         self.assertIn("::error title=PR model attribution required::", required.stdout)
 
     def test_a_misspelt_input_fails_before_any_git_call(self) -> None:
-        result, events = self._run_step({"model-attributionn": "model"}, body="No line")
+        result, events = self._run_step({"model-attributionn": "effort"}, body="No line")
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn(
             "::error title=post-no-bills::unknown input(s): 'model-attributionn'",
