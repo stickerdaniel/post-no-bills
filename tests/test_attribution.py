@@ -22,8 +22,8 @@ _LEVELS = ("model", "effort", "tool", "host")
 _NO_LINE = "The PR body has no last line"
 _PLACEHOLDER = "The last line still holds a placeholder"
 _FIELD = (
-    "A name contains a separator word (with, and, in, via), or a part is empty "
-    "or contains no alphanumeric character"
+    "A name contains a separator word (with, and, in, via) or an unpaired "
+    "parenthesis, or a part is empty or contains no alphanumeric character"
 )
 _EFFORT_TEXT = "An effort contains no alphanumeric character, or a parenthesis"
 _NO_MODEL = "The last line names no model"
@@ -106,6 +106,15 @@ _FORMS = {
 # (line, passes effort, passes tool, passes host). Every line passes model.
 _ACCEPTED = (
     ("Implemented with Claude Opus 5.", False, False, False),
+    ("Implemented with Claude Opus 5.5 (max) .", True, False, False),
+    ("Implemented with Claude Opus 5.5 (max)  in Claude Code via T3 Code.", True, True, True),
+    (
+        "Implemented with Claude Opus 5.5 (max)  and reviewed with GPT-6 Pro (high) "
+        "in Claude Code via T3 Code.",
+        True,
+        True,
+        True,
+    ),
     ("Implemented with Command R.", False, False, False),
     ("Implemented with GPT-5.6 Sol (high).", True, False, False),
     ("Implemented with Salesforce xGen (unknown) in T3 Code.", True, True, False),
@@ -145,6 +154,8 @@ _REJECTED = (
     "Done.",
     "Implemented in Claude Code via T3 Code.",
     "Implemented With Claude Opus 5.5 (max).",
+    "Implemented with Claude Opus 5.5 (max in fast mode).",
+    "Implemented (mostly with Claude Opus 5.5 (max).",
     "Implemented with GPT-5.6 (high) via T3 Code.",
     "Implemented with GPT-5.6",
     "Implemented with GPT-5.6 (high)",
@@ -255,10 +266,10 @@ class AttributionGrammarTests(unittest.TestCase):
         )
 
     def test_documented_limits(self) -> None:
-        # A separator word inside the effort splits the line like anywhere else.
+        # A separator word inside the effort splits the line like anywhere else,
+        # which leaves an unpaired parenthesis on each side.
         self.assertEqual(
-            attribution.parse("Implemented with Claude Opus 5.5 (work in progress)."),
-            (((("Implemented",), "Claude Opus 5.5 (work", None),), "progress)", None),
+            attribution.parse("Implemented with Claude Opus 5.5 (work in progress)."), _FIELD
         )
         self.assertEqual(
             attribution.parse("Research and development with Claude Opus 5.5 (max)."),

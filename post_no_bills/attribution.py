@@ -43,8 +43,8 @@ _MACROSCOPE_BLOCK_RE = re.compile(
 
 _PLACEHOLDER = "The last line still holds a placeholder"
 _FIELD = (
-    "A name contains a separator word (with, and, in, via), or a part is empty "
-    "or contains no alphanumeric character"
+    "A name contains a separator word (with, and, in, via) or an unpaired "
+    "parenthesis, or a part is empty or contains no alphanumeric character"
 )
 _EFFORT_TEXT = "An effort contains no alphanumeric character, or a parenthesis"
 _NO_MODEL = "The last line names no model"
@@ -91,6 +91,9 @@ Parsed = tuple[tuple[_Clause, ...], str | None, str | None]
 def _bad_field(value: str) -> bool:
     if not any(character.isalnum() for character in value):
         return True
+    # An unpaired parenthesis means a separator split a group: `(max in fast mode)`.
+    if value.count("(") != value.count(")"):
+        return True
     return _SEPARATOR_WORD.search(value) is not None
 
 
@@ -108,6 +111,7 @@ def _model(text: str) -> tuple[str, str | None] | str:
     A parenthesised group that ends the text is the effort: "GPT-6 Pro (max)".
     Any effort text counts, "effort unknown" too; the check wants it stated.
     """
+    text = text.strip()
     model, effort = text, None
     if text.endswith(")") and " (" in text:
         model, _, effort = text[:-1].rpartition(" (")
