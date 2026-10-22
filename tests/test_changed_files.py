@@ -309,7 +309,7 @@ class DriverTests(_ChangedFileTestCase):
 
     def test_macroscope_block_is_scanned_raw(self) -> None:
         head = self.remote.commit("Add x", files={"x.txt": "x\n"})
-        result = self._run(head, body=f"Done.\n\nGenerated with Claude Opus 5\n\n{_MACROSCOPE}")
+        result = self._run(head, body=f"Done.\n\nImplemented with Claude Opus 5.\n\n{_MACROSCOPE}")
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("::error title=Bot co-author trailer in the PR body::", result.stdout)
         self.assertIn(

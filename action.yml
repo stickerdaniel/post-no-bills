@@ -7,7 +7,7 @@ branding:
 
 inputs:
   model-attribution:
-    description: Minimum detail of the final "Generated with ..." line of the PR body. off, model, job, tool or host.
+    description: Minimum detail of the final "<Job> with <model> (<effort>) in <tool> via <host>." line of the PR body. off, model, effort, tool or host.
     required: false
     default: host
   co-author-trailers:

@@ -11,7 +11,7 @@ from post_no_bills import gitdata
 
 from .support import CLAUDE, TOKEN, RemoteTestCase, foreign_commands
 
-_ATTRIBUTION = "Done.\n\nGenerated with Claude Opus 5 for implementation in Claude Code via T3 Code."
+_ATTRIBUTION = "Done.\n\nImplemented with Claude Opus 5 (high) in Claude Code via T3 Code."
 _EMPTY_RANGE = "no commits between base and head"
 
 
@@ -260,7 +260,7 @@ class FailClosedTests(RemoteTestCase):
         self.remote.open_pull_request(head)
         event = self.remote.event(head=head)
         self._fails_with(
-            "input model-attribution must be off, model, job, tool or host",
+            "input model-attribution must be off, model, effort, tool or host",
             self.remote.run_action(event, {"model-attribution": "yes"}),
         )
         self._fails_with(

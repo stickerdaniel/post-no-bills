@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- The model disclosure is verb-first and names each model's reasoning effort: `<Job> with <model> (<effort>) in <tool> via <host>.`, for example `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) in Claude Code via T3 Code.` Jobs that share a model are joined by `and`, as in `Planned and implemented with ...`. `with` is now a separator word and `for` is free text. The line always ends with a period, and `Generated with ... for ...` lines no longer pass the default
+- `model-attribution` replaces the `job` level with `effort`: `off`, `model`, `effort`, `tool` or `host`. The default `host` now requires an effort on every model except `Human`; write `effort unknown` when nothing states it
 - The README's `AGENTS.md` snippet also asks agents to amend agent `Co-authored-by` trailers out of their commits before pushing
 
 ## [3.1.0] - 2026-10-07

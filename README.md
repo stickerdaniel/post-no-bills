@@ -9,7 +9,7 @@ Agents write the code, people sign it. Models are disclosed in the PR body.
 <p>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dark.png">
-  <img alt="Left, agent trailers merged, meh: the Contributors list shows 4, stickerdaniel, claude, cursoragent and codex, after commit messages with Co-authored-by trailers for Claude, Cursor Agent and Codex. Right, show your contributors instead: the list shows stickerdaniel, open, vip and perf, and the PR body ends with Generated with Claude Opus 5.5 for implementation and GPT-6 Pro for review in Claude Code via T3 Code." src="docs/hero-light.png" width="800">
+  <img alt="Left, agent trailers merged, meh: the Contributors list shows 4, stickerdaniel, claude, cursoragent and codex, after commit messages with Co-authored-by trailers for Claude, Cursor Agent and Codex. Right, show your contributors instead: the list shows stickerdaniel, open, vip and perf, and the PR body ends with Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) in Claude Code via T3 Code." src="docs/hero-light.png" width="800">
 </picture>
 </p>
 
@@ -20,7 +20,7 @@ Coding agents add `Co-authored-by:` trailers to commits, putting their logos in 
 - **Agent trailers.** A `Co-authored-by` line that names a coding agent.
 - **Agent identities.** A commit authored or committed by an agent's address.
 - **Hidden text.** Invisible characters and look-alike letters.
-- **Model disclosure.** The last line of the PR body names the model, the job, the tool and the host.
+- **Model disclosure.** The last line of the PR body names the job, the model and its effort, the tool and the host.
 
 <details>
 <summary><strong>Details</strong></summary>
@@ -58,9 +58,10 @@ Make `post-no-bills` a required check. Keep the release SHA pinned and give the 
 Add this to your `AGENTS.md` so agents get the disclosure and trailers right before CI runs:
 
 ```text
-End PR bodies with `Generated with <model> for <job> in <tool> via <host>.`
-Repeat `<model> for <job>` joined by `and`; join jobs with `/`.
-Humans are `Human`. Ask for unknown values.
+End PR bodies with `<Job> with <model> (<effort>) in <tool> via <host>.`
+Repeat `<job> with <model> (<effort>)` joined by `and` for each model that did a job.
+Example: `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) in Claude Code via T3 Code.`
+Effort is the run's reasoning setting, or `effort unknown` if nothing states it. Humans are `Human`. Ask for other unknown values.
 Keep attribution in that line: before pushing, amend agent `Co-authored-by` trailers out of your commits.
 ```
 
@@ -73,7 +74,7 @@ Violations fail the check by default; unusual spaces warn. Severity inputs accep
 
 | Input | Default | Effect |
 | --- | --- | --- |
-| `model-attribution` | `host` | `off`, `model`, `job`, `tool` or `host`. |
+| `model-attribution` | `host` | `off`, `model`, `effort`, `tool` or `host`. |
 | `co-author-trailers` | `error` | `error`, `warn` or `off` for agent trailers in commit messages and the PR body. |
 | `agent-identities` | `error` | `error`, `warn` or `off` for commits authored or committed by an agent's address. |
 | `hidden-unicode` | `error` | `error`, `warn` or `off` for invisible and private-use characters. |
@@ -109,21 +110,21 @@ Set inputs as literals in the workflow on the default branch, never from pull re
 <details>
 <summary><strong>Model attribution</strong></summary>
 
-`host` is the default: model, job, tool and host. Use `Human` for human contributions. `off` turns the check off. A line that passes a stricter level also passes the ones below it.
+`host` is the default: every job with its model and the model's effort, the tool and the host. Write `effort unknown` when nothing states the effort. `Human` needs no effort. `off` turns the check off. A line that passes a stricter level also passes the ones below it.
 
-| Last line of the PR body | `model` | `job` | `tool` | `host` |
+| Last line of the PR body | `model` | `effort` | `tool` | `host` |
 | --- | :-: | :-: | :-: | :-: |
-| `Generated with Claude Opus 5.5` | ✓ | ✗ | ✗ | ✗ |
-| `Generated with Claude Opus 5.5 and GPT-6 Pro` | ✓ | ✗ | ✗ | ✗ |
-| `Generated with Claude Opus 5.5 in Claude Code.` | ✓ | ✗ | ✗ | ✗ |
-| `Generated with Claude Opus 5.5 for implementation.` | ✓ | ✓ | ✗ | ✗ |
-| `Generated with Claude Opus 5.5 for implementation and GPT-6 Pro for review.` | ✓ | ✓ | ✗ | ✗ |
-| `Generated with Claude Opus 5.5 for implementation, tests in Claude Code.` | ✓ | ✓ | ✓ | ✗ |
-| `Generated with Claude Opus 5.5 for implementation and GPT-6 Pro for review in Claude Code.` | ✓ | ✓ | ✓ | ✗ |
-| `Generated with Claude Opus 5.5 for implementation in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
-| `Generated with Claude Opus 5.5 for implementation and GPT-6 Pro for review in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
-| `Generated with Claude Opus 5.5 for implementation and GPT-6 Pro in Claude Code.` | ✗ | ✗ | ✗ | ✗ |
-| `Generated with Claude Opus 5.5 for implementation in Claude Code and GPT-6 Pro.` | ✗ | ✗ | ✗ | ✗ |
+| `Implemented with Claude Opus 5.5.` | ✓ | ✗ | ✗ | ✗ |
+| `Implemented with Claude Opus 5.5 (xhigh).` | ✓ | ✓ | ✗ | ✗ |
+| `Implemented with Claude Opus 5.5 (xhigh) in Claude Code.` | ✓ | ✓ | ✓ | ✗ |
+| `Implemented with Claude Opus 5.5 (xhigh) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
+| `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
+| `Planned and implemented with Claude Opus 5.5 (max) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
+| `Implemented with Claude Opus 5.5 (effort unknown) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
+| `Implemented with Claude Opus 5.5 (xhigh) and reviewed with Human in Claude Code via T3 Code.` | ✓ | ✓ | ✓ | ✓ |
+| `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro in Claude Code via T3 Code.` | ✓ | ✗ | ✗ | ✗ |
+| `Implemented with Claude Opus 5.5 (xhigh) and GPT-6 Pro (max) in Claude Code.` | ✗ | ✗ | ✗ | ✗ |
+| `Generated with Claude Opus 5.5 for implementation in Claude Code via T3 Code.` | ✓ | ✗ | ✗ | ✗ |
 
 </details>
 

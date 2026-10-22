@@ -119,7 +119,7 @@ class BodyTrailerTests(unittest.TestCase):
 
     def test_trailer_inside_macroscope_block_fails(self) -> None:
         body = (
-            "Done.\n\nGenerated with Claude Opus 5\n\n"
+            "Done.\n\nImplemented with Claude Opus 5.\n\n"
             "<!-- Macroscope's pull request summary starts here -->\n"
             "Co-authored-by: Claude <noreply@anthropic.com>\n"
             "<!-- Macroscope's pull request summary ends here -->\n"
@@ -145,7 +145,7 @@ class AttributionRuleTests(unittest.TestCase):
 
     _TEMPLATE_BODY = (
         "## Problem\n\nx\n\n"
-        "<!-- CI accepts ... -->\nGenerated with [model] for [job] in [tool] via [host].\n"
+        "<!-- CI accepts ... -->\n[job] with [model] ([effort]) in [tool] via [host].\n"
     )
 
     def _fails(self, body: str | None, login: str = "jane") -> bool:
@@ -161,16 +161,16 @@ class AttributionRuleTests(unittest.TestCase):
         self.assertTrue(self._fails("Summary without attribution", login="greptile-apps[bot]"))
 
     def test_model_only_attribution_passes(self) -> None:
-        self.assertFalse(self._fails("Done.\n\nGenerated with Claude Opus 5"))
+        self.assertFalse(self._fails("Done.\n\nImplemented with Claude Opus 5."))
 
     def test_detailed_attribution_passes(self) -> None:
         self.assertFalse(
-            self._fails("Done.\n\nGenerated with Claude Opus 5 for implementation in Claude Code.")
+            self._fails("Done.\n\nImplemented with Claude Opus 5 (high) in Claude Code.")
         )
 
     def test_attribution_followed_by_macroscope_block_passes(self) -> None:
         body = (
-            "Done.\n\nGenerated with Claude Opus 5\n\n"
+            "Done.\n\nImplemented with Claude Opus 5.\n\n"
             "<!-- Macroscope's pull request summary starts here -->\n"
             "> summary\n"
             "<!-- Macroscope's pull request summary ends here -->\n"
@@ -201,20 +201,20 @@ class AttributionRuleTests(unittest.TestCase):
         )
 
     def test_configured_level_is_enforced(self) -> None:
-        job = policy({"model-attribution": "job"})
-        self.assertTrue(rules.check_attribution("Generated with Claude Opus 5", "jane", job))
+        effort = policy({"model-attribution": "effort"})
+        self.assertTrue(rules.check_attribution("Implemented with Claude Opus 5.", "jane", effort))
         self.assertFalse(
-            rules.check_attribution("Generated with Claude Opus 5 for implementation.", "jane", job)
+            rules.check_attribution("Implemented with Claude Opus 5 (high).", "jane", effort)
         )
         host = policy({"model-attribution": "host"})
         self.assertTrue(
             rules.check_attribution(
-                "Generated with Claude Opus 5 for implementation in Claude Code.", "jane", host
+                "Implemented with Claude Opus 5 (high) in Claude Code.", "jane", host
             )
         )
         self.assertFalse(
             rules.check_attribution(
-                "Generated with Claude Opus 5 for implementation in Claude Code via T3 Code.",
+                "Implemented with Claude Opus 5 (high) in Claude Code via T3 Code.",
                 "jane",
                 host,
             )
