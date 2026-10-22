@@ -95,6 +95,9 @@ _REJECTED = (
     "Implemented With Claude Opus 5.5 (max).",
     "Implemented with Claude Opus 5.5 (max in fast mode).",
     "Implemented (mostly with Claude Opus 5.5 (max).",
+    "Implemented with Claude )beta( (max) in Claude Code via T3 Code.",
+    "Implemented with Claude Opus 5.5 (max) in )Claude( Code via T3 Code.",
+    "Implemented )now( with Claude Opus 5.5 (max) in Claude Code via T3 Code.",
     "Implemented with GPT-5.6 (high) via T3 Code.",
     "Implemented with GPT-5.6",
     "Implemented with GPT-5.6 (high)",
@@ -150,9 +153,13 @@ def _readme_table() -> tuple[list[str], list[list[str]]]:
     rows = [
         [cell.strip() for cell in line.strip().strip("|").split("|")]
         for line in section.splitlines()
-        if line.startswith("|")
+        if line.lstrip().startswith("|")
     ]
-    header, _, *data = rows
+    header, delimiter, *data = rows
+    # Without its delimiter row the Markdown is no table, and the first
+    # example would be read as one.
+    if not all(set(cell) <= set(":-") and "-" in cell for cell in delimiter):
+        raise AssertionError(f"README table has no delimiter row: {delimiter}")
     return [cell.strip("`") for cell in header[1:]], data
 
 

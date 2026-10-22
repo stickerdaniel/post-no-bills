@@ -89,7 +89,12 @@ def _bad_field(value: str) -> bool:
     if not any(character.isalnum() for character in value):
         return True
     # An unpaired parenthesis means a separator split a group: `(max in fast mode)`.
-    if value.count("(") != value.count(")"):
+    depth = 0
+    for character in value:
+        depth += {"(": 1, ")": -1}.get(character, 0)
+        if depth < 0:
+            return True
+    if depth:
         return True
     return _SEPARATOR_WORD.search(value) is not None
 
