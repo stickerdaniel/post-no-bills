@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import io
+import re
 import unittest
 
 from post_no_bills import attribution, rules
@@ -153,12 +154,12 @@ def _readme_table() -> tuple[list[str], list[list[str]]]:
     rows = [
         [cell.strip() for cell in line.strip().strip("|").split("|")]
         for line in section.splitlines()
-        if line.lstrip().startswith("|")
+        if re.match(r" {0,3}\|", line)
     ]
     header, delimiter, *data = rows
-    # Without its delimiter row the Markdown is no table, and the first
-    # example would be read as one.
-    if not all(set(cell) <= set(":-") and "-" in cell for cell in delimiter):
+    # Without a delimiter row of the header's width the Markdown is no table,
+    # and the first example would be read as one.
+    if len(delimiter) != len(header) or not all(re.fullmatch(":?-+:?", cell) for cell in delimiter):
         raise AssertionError(f"README table has no delimiter row: {delimiter}")
     return [cell.strip("`") for cell in header[1:]], data
 
