@@ -49,7 +49,7 @@ INPUT_NAMES = (
 )
 _LIST_INPUTS = INPUT_NAMES[6:]
 
-_LEVELS = ("off", "model", "job", "tool", "host")
+_LEVELS = ("off", "effort", "tool", "host")
 _MODES = ("error", "warn", "off")
 _OVERRIDES = ("inherit", *_MODES)
 _SHA = re.compile(r"[0-9a-f]{40}")
@@ -84,7 +84,7 @@ class InvalidEvent(Exception):
 @dataclass(frozen=True)
 class Policy:
     """What the caller asked the checks to do. Each mode is error, warn or
-    off, with inherit already resolved. model_attribution is off, model, job,
+    off, with inherit already resolved. model_attribution is off, effort,
     tool or host. The two sets hold only what the caller adds to the built-in
     ones, which stay in gitdata and rules."""
 

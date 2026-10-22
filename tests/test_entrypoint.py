@@ -11,7 +11,7 @@ from post_no_bills import gitdata
 
 from .support import CLAUDE, TOKEN, RemoteTestCase, foreign_commands
 
-_ATTRIBUTION = "Done.\n\nGenerated with Claude Opus 5 for implementation in Claude Code via T3 Code."
+_ATTRIBUTION = "Done.\n\nImplemented with Claude Opus 5 (high) in Claude Code via T3 Code."
 _EMPTY_RANGE = "no commits between base and head"
 
 
@@ -24,7 +24,7 @@ class CleanPullRequestTests(RemoteTestCase):
 
         result = self.remote.run_action(
             self.remote.event(head=head, body=_ATTRIBUTION),
-            {"model-attribution": "model"},
+            {"model-attribution": "effort"},
         )
 
         self.assertEqual(result.returncode, 0, result.stdout)
@@ -113,7 +113,7 @@ class RuleTests(RemoteTestCase):
     def test_reads_event_path_from_environment(self) -> None:
         """A null body read through GITHUB_EVENT_PATH fails only when required."""
         head = self.remote.commit("Add x", files={"x.txt": "x\n"})
-        required = self._run(head, body=None, inputs={"model-attribution": "model"})
+        required = self._run(head, body=None, inputs={"model-attribution": "effort"})
         optional = self._run(head, body=None, inputs={"model-attribution": "off"})
         self.assertEqual(required.returncode, 1)
         self.assertIn("::error title=PR model attribution required::", required.stdout)
@@ -260,7 +260,7 @@ class FailClosedTests(RemoteTestCase):
         self.remote.open_pull_request(head)
         event = self.remote.event(head=head)
         self._fails_with(
-            "input model-attribution must be off, model, job, tool or host",
+            "input model-attribution must be off, effort, tool or host",
             self.remote.run_action(event, {"model-attribution": "yes"}),
         )
         self._fails_with(
@@ -274,7 +274,7 @@ class FailClosedTests(RemoteTestCase):
         head = self.remote.commit("Add x", files={"x.txt": "x\n"})
         self.remote.open_pull_request(head)
         result = self.remote.run_action(
-            self.remote.event(head=head), {"model-attributionn": "model"}
+            self.remote.event(head=head), {"model-attributionn": "effort"}
         )
         self._fails_with(
             "::error title=post-no-bills::unknown input(s): 'model-attributionn'\n", result

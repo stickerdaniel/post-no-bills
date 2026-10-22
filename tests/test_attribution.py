@@ -3,12 +3,13 @@
 # 6e7344763bc3e8b99b95d5468b9edeea511be61e, where it was released under
 # Apache-2.0. Daniel Sticker is its sole author and relicenses it here under
 # the MIT License of this repository. The pytest parametrizations are subTest
-# loops. The cases are kept and re-sorted to the level grammar. The
+# loops. The cases are rewritten for the verb-first grammar. The
 # event-reading and workflow tests moved to test_event.py, test_entrypoint.py,
 # and test_workflows.py.
 from __future__ import annotations
 
 import io
+import re
 import unittest
 
 from post_no_bills import attribution, rules
@@ -17,155 +18,115 @@ from post_no_bills.report import Reporter
 from .support import ROOT, policy
 
 _TEMPLATE = ROOT / ".github" / "pull_request_template.md"
-_LEVELS = ("model", "job", "tool", "host")
+_README = ROOT / "README.md"
+_LEVELS = ("effort", "tool", "host")
 
 _NO_LINE = "The PR body has no last line"
-_NOT_PREFIX = 'The last line does not start with "Generated with"'
 _PLACEHOLDER = "The last line still holds a placeholder"
 _FIELD = (
-    "A name contains a separator word (for, in, and, via), or a part is empty "
-    "or contains no alphanumeric character"
+    "A name contains a separator word (with, and, in, via) or an unpaired "
+    "parenthesis, or a part is empty or contains no alphanumeric character"
 )
-_MIXED = "Some models have a job and others do not"
+_EFFORT_TEXT = "An effort contains no alphanumeric character, or a parenthesis"
+_NO_MODEL = "The last line names no model"
+_LAST_JOB = "A model has no job, or the last job has no model"
 _PERIOD = "The last line needs a final period"
-_NO_JOB = "A model has no job"
+_NO_EFFORT = 'A model has no effort; write "(effort unknown)" when nothing states it'
 _NO_TOOL = "The last line names no tool"
 _NO_HOST = "The last line names no host"
 
-# Attribution lines checked at every level. The README table is a subset. (body, passes at model, job, tool, host).
-_README = (
-    (None, False, False, False, False),
-    ("Generated with [model] for [job] in [tool].", False, False, False, False),
-    ("Generated with Claude Opus 5.5", True, False, False, False),
-    ("Generated with Claude Opus 5.5 and GPT-6 Pro", True, False, False, False),
-    ("Generated with Claude Opus 5.5 in Claude Code.", True, False, False, False),
-    ("Generated with Claude Opus 5.5 for implementation.", True, True, False, False),
+# Shown after "in this form: ", including the sentence period.
+_FORMS = {
+    "effort": "<Job> with <model> (<effort>).",
+    "tool": "<Job> with <model> (<effort>) in <tool>.",
+    "host": "<Job> with <model> (<effort>) in <tool> via <host>.",
+}
+
+# (line, passes effort, passes tool, passes host). The grammar accepts every
+# line; the levels decide whether it is detailed enough.
+_ACCEPTED = (
+    ("Implemented with Claude Opus 5.", False, False, False),
+    ("Implemented with Claude Opus 5.5 (max) .", True, False, False),
+    ("Implemented with Claude Opus 5.5 (max)  in Claude Code via T3 Code.", True, True, True),
     (
-        "Generated with Claude Opus 5.5 for implementation and GPT-6 Pro for review.",
-        True,
-        True,
-        False,
-        False,
-    ),
-    (
-        "Generated with Claude Opus 5.5 for implementation, tests in Claude Code.",
-        True,
-        True,
-        True,
-        False,
-    ),
-    (
-        "Generated with Claude Opus 5.5 for implementation and GPT-6 Pro for review in Claude Code.",
-        True,
-        True,
-        True,
-        False,
-    ),
-    (
-        "Generated with Claude Opus 5.5 for implementation in Claude Code via T3 Code.",
-        True,
-        True,
-        True,
-        True,
-    ),
-    (
-        "Generated with Claude Opus 5.5 for implementation and GPT-6 Pro for review "
+        "Implemented with Claude Opus 5.5 (max)  and reviewed with GPT-6 Pro (high) "
         "in Claude Code via T3 Code.",
         True,
         True,
         True,
+    ),
+    ("Implemented with Command R.", False, False, False),
+    ("Implemented with GPT-5.6 Sol (high).", True, False, False),
+    ("Implemented with Salesforce xGen (unknown) in T3 Code.", True, True, False),
+    ("Implemented with Gemini 3 Pro Preview (low) in Gemini CLI via Zed.", True, True, True),
+    ("Planned, implemented/tested with GPT-5.6 Sol (xhigh) in T3 Code.", True, True, False),
+    ("Security review for CI with GPT-5.6 Sol (high) in T3 Code.", True, True, False),
+    ("Implemented with Claude Opus 5.5 for speed (max) in Claude Code via T3 Code.", True, True, True),
+    ("Planned and implemented and tested with Codex (medium) in Codex CLI via T3 Code.", True, True, True),
+    (
+        "Planned with Claude Opus 5.5 (max) and implemented and tested with Codex (medium) in T3 Code.",
         True,
-    ),
-    (
-        "Generated with Claude Opus 5.5 for implementation and GPT-6 Pro in Claude Code.",
-        False,
-        False,
-        False,
+        True,
         False,
     ),
     (
-        "Generated with Claude Opus 5.5 for implementation in Claude Code and GPT-6 Pro.",
-        False,
-        False,
-        False,
+        "Implemented with Claude Sonnet 4.5 (high) and reviewed with GPT-5.6 (xhigh) and "
+        "tested with Codex (low) in T3 Code.",
+        True,
+        True,
         False,
     ),
+    ("Written with Human.", True, False, False),
+    ("Written with Human in Zed via GitHub.", True, True, True),
+    ("Written with Human and reviewed with GPT-6 Pro in Zed via GitHub.", False, False, False),
+    ("Written with human in Zed via GitHub.", False, False, False),
+    ("Implemented with Claude (beta) Opus (max).", True, False, False),
+    ("Implemented with Claude Opus 5.5 ( max ).", True, False, False),
+    ("Implemented with Claude Opus 5.5(max).", False, False, False),
+    ("Implemented with Claude Opus 5.5 (max) preview.", False, False, False),
+    ("Implemented with GPT-5.6 in Claude Code via T3 Code.", False, False, False),
 )
 
-# Shown after "in this form: ", including the sentence period.
-_FORMS = {
-    "model": "Generated with <model>.",
-    "job": "Generated with <model> for <job>.",
-    "tool": "Generated with <model> for <job> in <tool>.",
-    "host": "Generated with <model> for <job> in <tool> via <host>.",
-}
-
-# The old accept list, then former rejects the grammar now accepts.
-# (line, passes job, passes tool, passes host). Every line passes model.
-_ACCEPTED = (
-    ("Generated with Claude Opus 5", False, False, False),
-    ("Generated with Claude Opus 5.", False, False, False),
-    ("Generated with GPT-5.6 Sol", False, False, False),
-    ("Generated with GPT-5.6 Sol.", False, False, False),
-    ("Generated with Salesforce xGen", False, False, False),
-    ("Generated with Gemini 3 Pro Preview.", False, False, False),
-    ("Generated with Command R", False, False, False),
-    ("Generated with Claude Sonnet 4.5 for implementation in Claude Code.", True, True, False),
-    ("Generated with Claude Opus 5 for implementation in Claude Code via T3 Code.", True, True, True),
-    (
-        "Generated with Claude Sonnet 4.5 for implementation and GPT-5.6 for review in Claude Code.",
-        True,
-        True,
-        False,
-    ),
-    ("Generated with GPT-5.6 Sol for planning, implementation, review in T3 Code.", True, True, False),
-    ("Generated with GPT-5.6 Sol for implementation/testing in T3 Code.", True, True, False),
-    ("Generated with GPT-5.6 Sol for security review for CI in T3 Code.", True, True, False),
-    (
-        "Generated with Claude Sonnet 4.5 for implementation and GPT-5.6 for "
-        "review and Codex for testing in T3 Code.",
-        True,
-        True,
-        False,
-    ),
-    ("Generated with GPT-5.6 in Claude Code.", False, False, False),
-    ("Generated with GPT-5.6 for implementation.", True, False, False),
-    ("Generated with GPT-5.6 and Claude Opus 5.", False, False, False),
-    ("Generated with GPT-5.6 and Claude Opus 5", False, False, False),
-)
-
-# The old reject list, minus the lines _ACCEPTED took, plus lines the stricter
-# grammar newly rejects. Bodies as well as lines: check() reads the last line.
+# Bodies as well as lines: check() reads the last line.
 _REJECTED = (
     "## Summary\n\nNo attribution here.",
-    "Generated with GPT-5.6 for implementation in Claude Code.\n\nA later non-empty line.",
-    "Generated with GPT-5.6 via T3 Code.",
-    "Generated with GPT-5.6 for implementation",
-    "Generated with GPT-5.6 in Claude Code",
-    "Generated with GPT-5.6 via T3 Code",
-    "Generated with GPT-5.6 for implementation in via T3 Code.",
-    "Generated with GPT-5.6 for implementation in Claude Code via .",
-    "Generated with GPT-5.6 for implementation in Claude Code via T3 Code via another wrapper.",
-    "Generated with",
-    "Generated with .",
-    "Generated with ..",
-    "Generated with <model>",
-    "Generated with <model>.",
-    "Generated with [model]",
-    "Generated with [model].",
-    "Generated with . for implementation in Claude Code.",
-    "Generated with GPT-5.6 for implementation and testing in T3 Code.",
-    "Generated with Claude Sonnet 4.5 for implementation and GPT-5.6 for review and Codex in T3 Code.",
-    "Generated with Claude Sonnet 4.5 for implementation and GPT-5.6 for in Claude Code.",
-    "Generated with Claude Sonnet 4.5 for implementation and  for review in Claude Code.",
-    "Generated with Claude Sonnet 4.5 for implementation and GPT-5.6 for review and Codex for in Claude Code.",
-    "Generated with <model> for <job> in <harness>.",
-    "Generated with [model] for [job] in [harness].",
-    "Generated with GPT-5.6 and-Research.",
-    "Generated with Claude Opus 5.5 for / in Claude Code.",
-    "Generated with Claude Opus 5.5 for implementation in -.",
-    "Generated with Claude Opus 5.5 for implementation in Claude Code via ---.",
-    "Generated with Claude Opus 5.5 for implementation in Code in a Box.",
+    "Implemented with GPT-5.6 (high) in Claude Code.\n\nA later non-empty line.",
+    "Done.",
+    "Implemented in Claude Code via T3 Code.",
+    "Implemented With Claude Opus 5.5 (max).",
+    "Implemented with Claude Opus 5.5 (max in fast mode).",
+    "Implemented (mostly with Claude Opus 5.5 (max).",
+    "Implemented with Claude )beta( (max) in Claude Code via T3 Code.",
+    "Implemented with Claude Opus 5.5 (max) in )Claude( Code via T3 Code.",
+    "Implemented )now( with Claude Opus 5.5 (max) in Claude Code via T3 Code.",
+    "Implemented with GPT-5.6 (high) via T3 Code.",
+    "Implemented with GPT-5.6",
+    "Implemented with GPT-5.6 (high)",
+    "Implemented with GPT-5.6 (high) in Claude Code",
+    "Implemented with GPT-5.6 (high) in via T3 Code.",
+    "Implemented with GPT-5.6 (high) in Claude Code via .",
+    "Implemented with GPT-5.6 (high) in Claude Code via T3 Code via another wrapper.",
+    "Implemented with GPT-5.6 (high) in Claude Code in a Box.",
+    "Implemented with GPT-5.6 (high) in Claude Code and GPT-6 Pro.",
+    "Implemented with GPT-5.6 (high) in -.",
+    "Implemented with GPT-5.6 (high) in Claude Code via ---.",
+    ".",
+    "..",
+    "Implemented with .",
+    "/ with Claude Opus 5.5 (max).",
+    "Implemented with GPT-5.6 and-Research (max).",
+    "<Job> with <model>.",
+    "[job] with [model] ([effort]) in [tool] via [host].",
+    "Implemented with Claude Opus 5.5 (xhigh) and GPT-6 Pro (max) in Claude Code via T3 Code.",
+    "Implemented with Claude Opus 5.5 (xhigh) and reviewed.",
+    "Implemented with Claude Opus 5.5 (xhigh) and  with GPT-6 Pro (max).",
+    "Implemented with Claude Opus 5.5 with GPT-6 Pro (max).",
+    "Planned and implemented with Claude with Codex (max).",
+    "Implemented with Claude Opus 5.5 ().",
+    "Implemented with Claude Opus 5.5 ( ).",
+    "Implemented with Claude Opus 5.5 (-).",
+    "Implemented with Claude Opus 5.5 (a (b)).",
+    "Implemented with Claude Opus 5.5 (max)) in Claude Code.",
     "",
     None,
 )
@@ -175,20 +136,53 @@ def _passes(body: str | None, level: str) -> bool:
     return attribution.check(body, level) is None
 
 
+def _template_line() -> str:
+    lines = [
+        line.strip()
+        for line in _TEMPLATE.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    return lines[-1]
+
+
+def _readme_table() -> tuple[list[str], list[list[str]]]:
+    """(level columns, rows of cells) of the table under the README's
+    "Model attribution" details."""
+    text = _README.read_text(encoding="utf-8")
+    section = text.split("<summary><strong>Model attribution</strong></summary>", 1)[1]
+    section = section.split("</details>", 1)[0]
+    rows = [
+        [cell.strip() for cell in line.strip().strip("|").split("|")]
+        for line in section.splitlines()
+        if re.match(r" {0,3}\|", line)
+    ]
+    header, delimiter, *data = rows
+    # Without a delimiter row of the header's width the Markdown is no table,
+    # and the first example would be read as one.
+    if len(delimiter) != len(header) or not all(re.fullmatch(":?-+:?", cell) for cell in delimiter):
+        raise AssertionError(f"README table has no delimiter row: {delimiter}")
+    return [cell.strip("`") for cell in header[1:]], data
+
+
 class ReadmeTableTests(unittest.TestCase):
     def test_every_row_at_every_level(self) -> None:
-        self.assertEqual(len(_README), 13)
-        for body, *expected in _README:
-            for level, ok in zip(_LEVELS, expected, strict=True):
-                with self.subTest(body=body, level=level):
-                    self.assertEqual(_passes(body, level), ok)
+        levels, rows = _readme_table()
+        self.assertEqual(tuple(levels), _LEVELS)
+        self.assertTrue(rows)
+        for line, *cells in rows:
+            line = line.strip("`")
+            for level, cell in zip(levels, cells, strict=True):
+                with self.subTest(line=line, level=level):
+                    self.assertIn(cell, ("✓", "✗"))
+                    self.assertEqual(_passes(line, level), cell == "✓")
 
 
 class AttributionGrammarTests(unittest.TestCase):
     def test_accepted_lines_pass_the_levels_they_satisfy(self) -> None:
-        for line, job, tool, host in _ACCEPTED:
-            expected = {"model": True, "job": job, "tool": tool, "host": host}
-            for level, ok in expected.items():
+        for line, *expected in _ACCEPTED:
+            with self.subTest(line=line):
+                self.assertNotIsInstance(attribution.parse(line), str)
+            for level, ok in zip(_LEVELS, expected, strict=True):
                 with self.subTest(line=line, level=level):
                     self.assertEqual(_passes(line, level), ok)
 
@@ -199,99 +193,113 @@ class AttributionGrammarTests(unittest.TestCase):
                     self.assertFalse(_passes(body, level))
 
     def test_dangling_separators_are_rejected(self) -> None:
-        for keyword in ("for", "in", "and", "via"):
+        for keyword in ("with", "and", "in", "via"):
             for line in (
-                f"Generated with GPT-5.6 {keyword}",
-                f"Generated with GPT-5.6 {keyword}.",
-                f"Generated with {keyword} GPT-5.6",
+                f"Implemented with GPT-5.6 (high) {keyword}",
+                f"Implemented with GPT-5.6 (high) {keyword}.",
+                f"{keyword} Implemented with GPT-5.6 (high).",
             ):
                 for level in _LEVELS:
                     with self.subTest(line=line, level=level):
                         self.assertFalse(_passes(line, level))
 
     def test_accepts_trailing_blank_lines(self) -> None:
-        body = "## Summary\n\nDone.\n\nGenerated with GPT-5.6 for implementation in Claude Code.\n\n"
+        body = "## Summary\n\nDone.\n\nImplemented with GPT-5.6 (high) in Claude Code.\n\n"
         self.assertTrue(_passes(body, "tool"))
         self.assertFalse(_passes(body, "host"))
 
     def test_parse_reads_the_fields(self) -> None:
         self.assertEqual(
             attribution.parse(
-                "Generated with Claude Opus 5.5 for security review for CI in Claude Code via T3 Code."
-            ),
-            ((("Claude Opus 5.5", "security review for CI"),), "Claude Code", "T3 Code"),
-        )
-        self.assertEqual(
-            attribution.parse("Generated with Claude Opus 5.5 and GPT-6 Pro"),
-            ((("Claude Opus 5.5", None), ("GPT-6 Pro", None)), None, None),
-        )
-        self.assertEqual(
-            attribution.parse(
-                "Generated with Claude Sonnet 4.5 for implementation and GPT-5.6 for "
-                "review and Codex for testing in T3 Code."
+                "Security review for CI with Claude Opus 5.5 for speed (effort unknown) "
+                "and reviewed with GPT-6 Pro (max) in Claude Code via T3 Code."
             ),
             (
                 (
-                    ("Claude Sonnet 4.5", "implementation"),
-                    ("GPT-5.6", "review"),
-                    ("Codex", "testing"),
+                    (("Security review for CI",), "Claude Opus 5.5 for speed", "effort unknown"),
+                    (("reviewed",), "GPT-6 Pro", "max"),
                 ),
+                "Claude Code",
                 "T3 Code",
+            ),
+        )
+        self.assertEqual(
+            attribution.parse(
+                "Planned and implemented with Claude Opus 5.5 (max) and reviewed with Human."
+            ),
+            (
+                (
+                    (("Planned", "implemented"), "Claude Opus 5.5", "max"),
+                    (("reviewed",), "Human", None),
+                ),
+                None,
                 None,
             ),
         )
+        self.assertEqual(
+            attribution.parse("Implemented with Claude (beta) Opus (max) in T3 Code."),
+            (((("Implemented",), "Claude (beta) Opus", "max"),), "T3 Code", None),
+        )
 
     def test_documented_limits(self) -> None:
+        # A separator word inside the effort splits the line like anywhere else,
+        # which leaves an unpaired parenthesis on each side.
         self.assertEqual(
-            attribution.parse("Generated with Claude Opus 5.5 for work in progress."),
-            ((("Claude Opus 5.5", "work"),), "progress", None),
-        )
-        self.assertTrue(_passes("Generated with Claude Opus 5.5 for work in progress.", "tool"))
-        self.assertEqual(
-            attribution.parse("Generated with Research and Development."),
-            ((("Research", None), ("Development", None)), None, None),
+            attribution.parse("Implemented with Claude Opus 5.5 (work in progress)."), _FIELD
         )
         self.assertEqual(
-            attribution.parse(
-                "Generated with Claude Opus 5.5 for implementation in Claude Code & GPT-6 Pro."
-            ),
-            ((("Claude Opus 5.5", "implementation"),), "Claude Code & GPT-6 Pro", None),
+            attribution.parse("Research and development with Claude Opus 5.5 (max)."),
+            (((("Research", "development"), "Claude Opus 5.5", "max"),), None, None),
         )
         self.assertEqual(
-            attribution.parse(
-                "Generated with Claude Opus 5.5 for implementation in Claude Code AND GPT-6 Pro."
-            ),
-            ((("Claude Opus 5.5", "implementation"),), "Claude Code AND GPT-6 Pro", None),
+            attribution.parse("Implemented with Claude Opus 5.5 (max) in Claude Code & GPT-6 Pro."),
+            (((("Implemented",), "Claude Opus 5.5", "max"),), "Claude Code & GPT-6 Pro", None),
+        )
+        self.assertEqual(
+            attribution.parse("Implemented with Claude Opus 5.5 (max) in Claude Code AND GPT-6 Pro."),
+            (((("Implemented",), "Claude Opus 5.5", "max"),), "Claude Code AND GPT-6 Pro", None),
         )
 
     def test_parse_returns_a_line_reason(self) -> None:
-        self.assertEqual(attribution.parse("Done."), _NOT_PREFIX)
-        self.assertEqual(attribution.parse("Generated with [model]."), _PLACEHOLDER)
-        self.assertEqual(attribution.parse("Generated with GPT-5.6 and"), _FIELD)
-        self.assertEqual(attribution.parse("Generated with and GPT-5.6"), _FIELD)
-        self.assertEqual(attribution.parse("Generated with GPT-5.6 and."), _FIELD)
-        self.assertEqual(
-            attribution.parse("Generated with Claude Opus 5.5 for implementation and GPT-6 Pro."),
-            _MIXED,
+        cases = (
+            ("Done.", _NO_MODEL),
+            ("[job] with [model].", _PLACEHOLDER),
+            ("Implemented with GPT-5.6 and", _FIELD),
+            ("and Implemented with GPT-5.6.", _FIELD),
+            ("Implemented with GPT-5.6 and.", _FIELD),
+            ("Implemented with Claude with GPT-5.6 (max).", _FIELD),
+            ("Implemented with GPT-5.6 ().", _EFFORT_TEXT),
+            ("Implemented with GPT-5.6 (a (b)).", _EFFORT_TEXT),
+            ("Implemented with Claude Opus 5.5 (max) and GPT-6 Pro (max).", _LAST_JOB),
+            ("Implemented with Claude Opus 5.5 (max) and reviewed.", _LAST_JOB),
+            ("Implemented with Claude Opus 5.5 (max)", _PERIOD),
         )
-        self.assertEqual(attribution.parse("Generated with Claude Opus 5.5 for implementation"), _PERIOD)
+        for line, reason in cases:
+            with self.subTest(line=line):
+                self.assertEqual(attribution.parse(line), reason)
 
 
 class ReasonTests(unittest.TestCase):
     def test_each_reason_leads_the_message(self) -> None:
         cases = (
-            ("model", None, _NO_LINE),
-            ("model", "Done.", _NOT_PREFIX),
-            ("model", "Generated with [model].", _PLACEHOLDER),
-            ("model", "Generated with GPT-5.6 and", _FIELD),
-            ("model", "Generated with Claude Opus 5.5 for implementation and GPT-6 Pro.", _MIXED),
-            ("model", "Generated with Claude Opus 5.5 for implementation", _PERIOD),
-            ("job", "Generated with Claude Opus 5.5", _NO_JOB),
-            ("tool", "Generated with Claude Opus 5.5 for implementation.", _NO_TOOL),
-            ("host", "Generated with Claude Opus 5.5 for implementation in Claude Code.", _NO_HOST),
+            ("effort", None, _NO_LINE),
+            ("effort", "Done.", _NO_MODEL),
+            ("effort", "[job] with [model].", _PLACEHOLDER),
+            ("effort", "Implemented with GPT-5.6 and", _FIELD),
+            ("effort", "Implemented with GPT-5.6 ().", _EFFORT_TEXT),
+            ("effort", "Implemented with Claude Opus 5.5 (max) and GPT-6 Pro (max).", _LAST_JOB),
+            ("effort", "Implemented with Claude Opus 5.5", _PERIOD),
+            ("effort", "Implemented with Claude Opus 5.5.", _NO_EFFORT),
+            (
+                "host",
+                "Generated with Claude Opus 5.5 for implementation in Claude Code via T3 Code.",
+                _NO_EFFORT,
+            ),
+            ("tool", "Implemented with Claude Opus 5.5 (max).", _NO_TOOL),
+            ("host", "Implemented with Claude Opus 5.5 (max) in Claude Code.", _NO_HOST),
         )
         for level, body, reason in cases:
-            with self.subTest(reason=reason):
+            with self.subTest(body=body, level=level):
                 message = attribution.check(body, level)
                 self.assertTrue(message.startswith(reason + "."), message)
                 self.assertNotIn("\n", message)
@@ -299,35 +307,37 @@ class ReasonTests(unittest.TestCase):
 
     def test_an_earlier_reason_wins(self) -> None:
         cases = (
-            ("model", "\n\n", _NO_LINE, _NOT_PREFIX),
-            ("model", "See [model]", _NOT_PREFIX, _PLACEHOLDER),
+            ("effort", "\n\n", _NO_LINE, _NO_MODEL),
+            ("effort", "See [model]", _PLACEHOLDER, _NO_MODEL),
             (
-                "model",
-                "Generated with [model] for implementation and GPT-6 Pro in Code in a Box.",
+                "effort",
+                "[job] with Claude Opus 5.5 (max) and GPT-6 Pro in Code in a Box.",
                 _PLACEHOLDER,
                 _FIELD,
             ),
             (
-                "model",
-                "Generated with Claude Opus 5.5 for implementation and for review.",
+                "effort",
+                "Implemented with Claude Opus 5.5 (max) and  with GPT-6 Pro (max)",
                 _FIELD,
-                _MIXED,
+                _PERIOD,
             ),
+            ("effort", "Implemented with Claude Opus 5.5 ()", _EFFORT_TEXT, _PERIOD),
             (
-                "model",
-                "Generated with Claude Opus 5.5 for implementation and GPT-6 Pro in Claude Code",
-                _MIXED,
+                "effort",
+                "Implemented with Claude Opus 5.5 (max) and GPT-6 Pro (max)",
+                _LAST_JOB,
                 _PERIOD,
             ),
             (
-                "job",
-                "Generated with Claude Opus 5.5 for implementation and GPT-6 Pro in Claude Code.",
-                _MIXED,
-                _NO_JOB,
+                "effort",
+                "Implemented with Claude Opus 5.5 (max) and GPT-6 Pro in Claude Code.",
+                _LAST_JOB,
+                _NO_EFFORT,
             ),
-            ("job", "Generated with Claude Opus 5.5 in Claude Code", _PERIOD, _NO_JOB),
-            ("tool", "Generated with Claude Opus 5.5", _NO_JOB, _NO_TOOL),
-            ("host", "Generated with Claude Opus 5.5 for implementation.", _NO_TOOL, _NO_HOST),
+            ("effort", "Implemented with Claude Opus 5.5 in Claude Code", _PERIOD, _NO_EFFORT),
+            ("host", "Implemented with Claude Opus 5.5 (max) via T3 Code.", _FIELD, _NO_TOOL),
+            ("tool", "Implemented with Claude Opus 5.5.", _NO_EFFORT, _NO_TOOL),
+            ("host", "Implemented with Claude Opus 5.5 (max).", _NO_TOOL, _NO_HOST),
         )
         for level, body, earlier, later in cases:
             with self.subTest(body=body, level=level):
@@ -368,7 +378,7 @@ _MACROSCOPE = (
     ">\n"
     "<!-- Macroscope's pull request summary ends here -->\n"
 )
-_LINE = "Generated with Claude Opus 5.5"
+_LINE = "Implemented with Claude Opus 5.5 (xhigh)."
 
 
 class MacroscopeTests(unittest.TestCase):
@@ -397,7 +407,7 @@ class MacroscopeTests(unittest.TestCase):
         for name, body in bodies.items():
             for newline_name, newline in (("lf", "\n"), ("crlf", "\r\n")):
                 with self.subTest(body=name, newline=newline_name):
-                    self.assertTrue(_passes(body.replace("\n", newline), "model"))
+                    self.assertTrue(_passes(body.replace("\n", newline), "effort"))
 
     def test_the_macroscope_summary_carries_no_attribution(self) -> None:
         bodies = {
@@ -411,10 +421,16 @@ class MacroscopeTests(unittest.TestCase):
         }
         for name, body in bodies.items():
             with self.subTest(body=name):
-                self.assertFalse(_passes(body, "model"))
+                self.assertFalse(_passes(body, "effort"))
 
 
 class TemplateTests(unittest.TestCase):
+    def test_no_body_and_the_template_line_fail_every_level(self) -> None:
+        for body in (None, _template_line()):
+            for level in _LEVELS:
+                with self.subTest(body=body, level=level):
+                    self.assertFalse(_passes(body, level))
+
     def test_template_ends_with_editable_attribution_placeholder(self) -> None:
         lines = [
             line.strip()
@@ -422,7 +438,7 @@ class TemplateTests(unittest.TestCase):
             if line.strip()
         ]
 
-        self.assertEqual(lines[-1], "Generated with [model] for [job] in [tool] via [host].")
+        self.assertEqual(lines[-1], "[job] with [model] ([effort]) in [tool] via [host].")
         self.assertIn("default level is host", lines[-2])
         self.assertIn("ends with a period", lines[-2])
         self.assertIn("in Claude Code via T3 Code", lines[-2])
@@ -432,10 +448,10 @@ class TemplateTests(unittest.TestCase):
 class AnnotationTests(unittest.TestCase):
     def test_failure_emits_actionable_github_annotation(self) -> None:
         stream = io.StringIO()
-        findings = rules.check_attribution("No attribution", "jane", policy({"model-attribution": "model"}))
+        findings = rules.check_attribution("No attribution", "jane", policy({"model-attribution": "effort"}))
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0].title, "PR model attribution required")
-        self.assertEqual(findings[0].message, attribution.check("No attribution", "model"))
+        self.assertEqual(findings[0].message, attribution.check("No attribution", "effort"))
         self.assertNotIn("\n", findings[0].message)
         for finding in findings:
             Reporter(stream).finding(finding)
@@ -443,9 +459,9 @@ class AnnotationTests(unittest.TestCase):
         output = stream.getvalue()
         self.assertTrue(output.startswith("::error title=PR model attribution required::"))
         self.assertNotIn("%0A", output.splitlines()[0])
-        self.assertIn(_NOT_PREFIX, output)
-        self.assertIn("Generated with <model>", output)
-        self.assertIn("Generated with Claude Opus 5.5", output)
+        self.assertIn(_NO_MODEL, output)
+        self.assertIn("<Job> with <model> (<effort>).", output)
+        self.assertIn("Implemented with Claude Opus 5.5 (xhigh).", output)
 
 
 if __name__ == "__main__":

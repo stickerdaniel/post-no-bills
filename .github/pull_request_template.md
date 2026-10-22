@@ -10,5 +10,5 @@
 
 <!-- Confirm `python3 -m unittest discover -v` passes and describe any other checks. -->
 
-<!-- The default level is host, so the last line names the model, the job, the tool and the host, and ends with a period. For example, "Generated with Claude Opus 5.5 for implementation in Claude Code via T3 Code." -->
-Generated with [model] for [job] in [tool] via [host].
+<!-- The default level is host, so the last line names the job, the model and its effort, the tool and the host, and ends with a period. For example, "Implemented with Claude Opus 5.5 (xhigh) in Claude Code via T3 Code." -->
+[job] with [model] ([effort]) in [tool] via [host].
