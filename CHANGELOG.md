@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [4.1.1] - 2026-11-22
+
 ### Changed
 
 - A missing effort fails with a request for the model's reasoning setting, such as `(high)`, instead of a pointer to `(effort unknown)`. Any effort text still passes
@@ -46,7 +48,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Versions 1.0.0 to 2.2.0 were early releases and are no longer published. Their commits stay in the history of `main`. Before 2.2.0 the repository was `stickerdaniel/agent-guardrails`; `uses:` references to that name do not resolve.
 
-[Unreleased]: https://github.com/stickerdaniel/post-no-bills/compare/v4.1.0...HEAD
+[Unreleased]: https://github.com/stickerdaniel/post-no-bills/compare/v4.1.1...HEAD
+[4.1.1]: https://github.com/stickerdaniel/post-no-bills/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/stickerdaniel/post-no-bills/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/stickerdaniel/post-no-bills/compare/v3.1.0...v4.0.0
 [3.1.0]: https://github.com/stickerdaniel/post-no-bills/compare/v3.0.0...v3.1.0
