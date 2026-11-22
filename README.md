@@ -61,7 +61,7 @@ Add this to your `AGENTS.md` so agents get the disclosure and trailers right bef
 End PR bodies with `<Job> with <model> (<effort>) in <tool> via <host>.`
 Repeat `<job> with <model> (<effort>)` joined by `and` for each model that did a job.
 Example: `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) in Claude Code via [T3 Code](https://t3.codes).`
-Effort is the run's reasoning setting, or `effort unknown` if nothing states it. Humans are `Human`. Ask for other unknown values.
+Effort is the run's reasoning setting. Read it for each model where the run reports it: the host's thread settings (T3 Code: `modelSelection`), launch flags, the environment (`$CLAUDE_EFFORT`), a subagent's definition or a delegate call. Humans are `Human`. Ask for other unknown values.
 Keep attribution in that line: before pushing, amend agent `Co-authored-by` trailers out of your commits.
 ```
 
@@ -110,7 +110,7 @@ Set inputs as literals in the workflow on the default branch, never from pull re
 <details>
 <summary><strong>Model attribution</strong></summary>
 
-`host` is the default: every job with its model and the model's effort, the tool and the host. `effort` is the minimum: every model needs an effort; write `effort unknown` when nothing states it. `Human` needs no effort. `off` turns the check off. A line that passes a stricter level also passes the ones below it.
+`host` is the default: every job with its model and the model's effort, the tool and the host. `effort` is the minimum: every model needs its reasoning setting as the effort. `Human` needs no effort. `off` turns the check off. A line that passes a stricter level also passes the ones below it.
 
 A name may be an inline link without a title, such as `[T3 Code](https://t3.codes)`; the check reads its name. The link holds no backslash. Its URL starts with `https://` and holds no space, parenthesis, or angle or square bracket.
 
@@ -122,7 +122,6 @@ A name may be an inline link without a title, such as `[T3 Code](https://t3.code
 | `Implemented with Claude Opus 5.5 (xhigh) in Claude Code via [T3 Code](https://t3.codes).` | ✓ | ✓ | ✓ |
 | `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro (max) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ |
 | `Planned and implemented with Claude Opus 5.5 (max) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ |
-| `Implemented with Claude Opus 5.5 (effort unknown) in Claude Code via T3 Code.` | ✓ | ✓ | ✓ |
 | `Implemented with Claude Opus 5.5 (xhigh) and reviewed with Human in Claude Code via T3 Code.` | ✓ | ✓ | ✓ |
 | `Implemented with Claude Opus 5.5 (xhigh) and reviewed with GPT-6 Pro in Claude Code via T3 Code.` | ✗ | ✗ | ✗ |
 | `Implemented with Claude Opus 5.5.` | ✗ | ✗ | ✗ |

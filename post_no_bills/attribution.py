@@ -58,7 +58,7 @@ _NO_MODEL = "The last line names no model"
 _LAST_JOB = "A model has no job, or the last job has no model"
 _PERIOD = "The last line needs a final period"
 _NO_LINE = "The PR body has no last line"
-_NO_EFFORT = 'A model has no effort; write "(effort unknown)" when nothing states it'
+_NO_EFFORT = 'A model has no effort; write its reasoning setting, such as "(high)"'
 _NO_TOOL = "The last line names no tool"
 _NO_HOST = "The last line names no host"
 
@@ -118,7 +118,7 @@ def _model(text: str) -> tuple[str, str | None] | str:
     """(model, effort) from the text after ` with `, or the reason it is invalid.
 
     A parenthesised group that ends the text is the effort: "GPT-6 Pro (max)".
-    Any effort text counts, "effort unknown" too; the check wants it stated.
+    Any effort text counts; the check wants it stated.
     """
     text = text.strip()
     model, effort = text, None

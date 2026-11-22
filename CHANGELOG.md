@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- A missing effort fails with a request for the model's reasoning setting, such as `(high)`, instead of a pointer to `(effort unknown)`. Any effort text still passes
+
 ## [4.1.0] - 2026-11-09
 
 ### Added
