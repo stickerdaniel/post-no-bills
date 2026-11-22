@@ -31,7 +31,7 @@ _EFFORT_TEXT = "An effort contains no alphanumeric character, or a parenthesis"
 _NO_MODEL = "The last line names no model"
 _LAST_JOB = "A model has no job, or the last job has no model"
 _PERIOD = "The last line needs a final period"
-_NO_EFFORT = 'A model has no effort; write "(effort unknown)" when nothing states it'
+_NO_EFFORT = 'A model has no effort; write its reasoning setting, such as "(high)"'
 _NO_TOOL = "The last line names no tool"
 _NO_HOST = "The last line names no host"
 
